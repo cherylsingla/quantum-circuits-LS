@@ -29,14 +29,30 @@ class Bloch:
 
 def to_bloch(g: np.ndarray) -> Bloch:
     """Recover the Bloch form (alpha, n, theta) of a 2x2 unitary `g`."""
-    raise NotImplementedError("to_bloch is not implemented yet")
+    alpha = 0.5 * np.angle(np.linalg.det(g))
+    u = np.exp(-1j* alpha)*g
+    c = np.real(np.trace(u)/2)
+    theta = 2*np.arccos(c)
+    X = np.array([[0,1],[1,0]],dtype=DTYPE)
+    Y = np.array([[0,-1j],[1j,0]],dtype=DTYPE)
+    Z = np.array([[1,0],[0,-1]],dtype=DTYPE)
+    s = np.sin(theta/2)
+    nx = np.real((-1j/2) * np.trace(X @ u)) / s
+    ny = np.real((-1j/2) * np.trace(Y @ u)) /s
+    nz = np.real((-1j/2) * np.trace(Z @ u)) /s
+    n = np.array([nx, ny, nz])
+    n /= np.linalg.norm(n)
+    return Bloch(alpha, n, theta)
 
 
 # n1, n2 are two orthogonal Bloch-sphere axes (n1 . n2 == 0)
 # TODO: fill in the two orthogonal rotation axes (each a length-3
 # unit vector [x, y, z])
-n1 = np.array([np.nan, np.nan, np.nan])
-n2 = np.array([np.nan, np.nan, np.nan])
+c = np.sqrt(2) / np.tan(np.pi / 8)
+n1 = np.array([-c / np.sqrt(2),1, c / np.sqrt(2)], dtype=float)
+n1 /= np.linalg.norm(n1)
+n2 = np.array([1 / np.sqrt(2),c,-1 / np.sqrt(2)], dtype=float)
+n2 /= np.linalg.norm(n2)
 
 # frame derived from the axes (given)
 # take the dot product of the Bloch axis with these
@@ -54,7 +70,15 @@ def n1n2n1_angles(b: Bloch) -> tuple[float, float, float, float]:
     the orthonormal frame defined above. Returns (alpha, beta, gamma, global_phase).
     """
     # TODO(student): implement using the steps above.
-    raise NotImplementedError("n1n2n1_angles is not implemented yet")
+    v1 = np.dot(b.n,a1)*np.sin(b.theta)
+    v2 = np.dot(b.n,a2)*np.sin(b.theta)
+    v3 = np.dot(b.n,a3)*np.sin(b.theta)
+    beta = np.arctan2(np.sqrt(v2*v2 + v3*v3),np.cos(b.theta))
+    sum = np.arctan2(v1,np.cos(b.theta))
+    diff = np.arctan2(v3,v2)
+    alpha = (sum - diff)/2
+    gamma = (sum + diff)/2
+    return alpha, beta, gamma, b.alpha
 
 
 def approx_angle_with_tolerance(angle: float, tolerance: float) -> int:
@@ -70,7 +94,16 @@ def approx_angle_with_tolerance(angle: float, tolerance: float) -> int:
         min(|a - b|, TWO_PI - |a - b|) (so 0.01 and 2*pi - 0.01 count as close).
     """
     # TODO(student): implement using the hint above.
-    raise NotImplementedError("approx_angle_with_tolerance is not implemented yet")
+    target = angle % TWO_PI
+    k = 1
+    while True:
+        current = (k * LAMBDA_PI) % TWO_PI
+        diff = abs(current - target)
+        diff = min(diff, TWO_PI - diff)
+        if diff <= tolerance:
+            return k
+        k += 1
+
 
 
 def decompose_2x2(u: np.ndarray, tolerance: float) -> tuple[int, int, int]:
@@ -100,4 +133,9 @@ def decompose_2x2(u: np.ndarray, tolerance: float) -> tuple[int, int, int]:
       3. Return (k, l, m).
     """
     # TODO(student): implement using the steps above.
-    raise NotImplementedError("decompose_2x2 is not implemented yet")
+    b = to_bloch(u)
+    alpha, beta, gamma, _ = n1n2n1_angles(b)
+    k = approx_angle_with_tolerance(alpha,tolerance)
+    l = approx_angle_with_tolerance(beta,tolerance)
+    m = approx_angle_with_tolerance(gamma,tolerance)
+    return k, l, m
