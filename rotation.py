@@ -101,3 +101,126 @@ def decompose_2x2(u: np.ndarray, tolerance: float) -> tuple[int, int, int]:
     """
     # TODO(student): implement using the steps above.
     raise NotImplementedError("decompose_2x2 is not implemented yet")
+
+
+# ---------------------------------------------------------------------------
+# Single-qubit rotation helpers (see cpp/src/Unitary2_Bloch.h).
+#
+# These are the inverse/companion operations to to_bloch and are reused by the
+# multi-qubit decomposition pipeline in decompose.py.
+# ---------------------------------------------------------------------------
+
+
+def from_axis_angle(b: Bloch) -> np.ndarray:
+    """Build a 2x2 unitary from its Bloch form: a global phase times a rotation
+    by angle b.theta about axis b.n (inverse of to_bloch).
+
+        G = e^{i b.alpha} (cos(b.theta/2) I - i sin(b.theta/2) (b.n . sigma))
+
+    where (b.n . sigma) = n_x X + n_y Y + n_z Z. Assumes b.n is a unit vector.
+    """
+    # TODO(student): implement using the formula above.
+    raise NotImplementedError("from_axis_angle is not implemented yet")
+
+
+def Rz(theta: float) -> np.ndarray:
+    """Rotation about the z axis (no global phase):
+
+        Rz(theta) = diag(e^{-i theta/2}, e^{i theta/2}).
+    """
+    # TODO(student): implement (hint: from_axis_angle about axis [0, 0, 1]).
+    raise NotImplementedError("Rz is not implemented yet")
+
+
+def Ry(theta: float) -> np.ndarray:
+    """Rotation about the y axis (no global phase):
+
+        Ry(theta) = [[cos(theta/2), -sin(theta/2)], [sin(theta/2), cos(theta/2)]].
+    """
+    # TODO(student): implement (hint: from_axis_angle about axis [0, 1, 0]).
+    raise NotImplementedError("Ry is not implemented yet")
+
+
+def euler_angles_zyz(u: np.ndarray) -> tuple[float, float, float, float]:
+    """ZYZ Euler decomposition of a 2x2 unitary: angles (alpha, beta, gamma, delta)
+    with
+
+        u = e^{i alpha} Rz(beta) Ry(gamma) Rz(delta).
+
+    alpha is the global phase (arg(det u)/2); the rest come from S = e^{-i alpha} u
+    in SU(2), where s00 = cos(gamma/2) e^{-i(beta+delta)/2} and
+    s10 = sin(gamma/2) e^{i(beta-delta)/2}. When gamma = 0 (s10 = 0), beta/delta are
+    split arbitrarily (gimbal lock); the identity still holds.
+    """
+    # TODO(student): implement using the relations above.
+    raise NotImplementedError("euler_angles_zyz is not implemented yet")
+
+
+def unitary2_sqrt(u: np.ndarray) -> np.ndarray:
+    """Principal square root: a 2x2 unitary V with V @ V == u, phase included.
+    Take the Bloch form of u and halve both alpha and theta (same axis); squaring
+    back doubles them, reproducing u exactly.
+    """
+    # TODO(student): implement (hint: to_bloch, halve alpha and theta, from_axis_angle).
+    raise NotImplementedError("unitary2_sqrt is not implemented yet")
+
+
+# ---------------------------------------------------------------------------
+# H/T word machinery for approximating a 2x2 unitary in {H, T} (see cpp/src/HT.h).
+#
+# M1, M2 are short H/T words that realize rotations by THETA_M = 2*LAMBDA_PI about
+# the axes a1, a2. A word is a flat string of 'H'/'T' characters, read left-to-right
+# as a matrix product (leftmost char = leftmost/outermost factor).
+# ---------------------------------------------------------------------------
+
+# alternating (T-power, H-power, ...) exponents, starting with T
+M1_WORD = [7, 1, 1, 1]
+M2_WORD = [2, 1, 1, 1, 6, 1, 7, 1, 5, 1, 1, 1, 2, 1, 1, 1, 2, 1, 7, 1, 6]
+
+
+def expand_word(word: list[int]) -> str:
+    """Flatten an alternating (T-power, H-power, ...) exponent list into a literal
+    string of 'H'/'T' gates (left-to-right). Even indices are T, odd indices are H.
+    """
+    # TODO(student): implement.
+    raise NotImplementedError("expand_word is not implemented yet")
+
+
+# flat H/T strings for the two building-block words (computed once expand_word works)
+# M1_STR = expand_word(M1_WORD)
+# M2_STR = expand_word(M2_WORD)
+
+
+def gates_to_unitary(gates: str) -> np.ndarray:
+    """The 2x2 unitary of a flat H/T gate string (left-to-right product)."""
+    # TODO(student): implement (multiply H / T for each char, starting from I).
+    raise NotImplementedError("gates_to_unitary is not implemented yet")
+
+
+def invert_gates(gates: str) -> str:
+    """Inverse of a flat H/T word: reverse the gate order and invert each gate.
+    H^-1 = H; the {H, T} basis has no T-dagger, so T^-1 must be spelled as T^7.
+    """
+    # TODO(student): implement.
+    raise NotImplementedError("invert_gates is not implemented yet")
+
+
+def power_gates(base: str, k: int) -> str:
+    """The k-th power of a flat H/T word: base repeated k times. Negative k uses the
+    inverse word (invert_gates).
+    """
+    # TODO(student): implement.
+    raise NotImplementedError("power_gates is not implemented yet")
+
+
+def approximate_in_ht(u: np.ndarray, error: float) -> str:
+    """Approximate a 2x2 unitary `u` by a flat H/T word (up to global phase) to the
+    angular tolerance `error` (smaller -> longer, more accurate).
+
+    Use decompose_2x2 to get the powers (k, l, m) with u ~= M1^k M2^l M1^m, then
+    assemble the word:
+
+        power_gates(M1_STR, k) + power_gates(M2_STR, l) + power_gates(M1_STR, m).
+    """
+    # TODO(student): implement using decompose_2x2 and power_gates.
+    raise NotImplementedError("approximate_in_ht is not implemented yet")
