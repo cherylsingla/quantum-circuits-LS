@@ -35,7 +35,7 @@ import rotation
 def num_qubits(N: int) -> int:
     """Number of qubits n such that N == 2^n (N is the unitary / two-level size)."""
     # TODO: implement.
-    raise NotImplementedError("num_qubits is not implemented yet")
+    return N.bit_length() - 1
 
 
 # ---------------------------------------------------------------------------
@@ -63,7 +63,14 @@ class TwoLevel:
         placed at rows/cols (level0, level1).
         """
         # TODO: implement.
-        raise NotImplementedError("TwoLevel.to_unitary is not implemented yet")
+        U = np.eye(self.size,dtype=complex)
+        i = self.level0
+        j = self.level1
+        U[i,i] = self.unitary[0, 0]
+        U[i,j] = self.unitary[0, 1]
+        U[j,i] = self.unitary[1, 0]
+        U[j,j] = self.unitary[1, 1]
+        return U
 
 
 @dataclass
@@ -81,7 +88,18 @@ class SingleQubitGate:
         0, fill the 2x2 block linking it to its partner (that bit = 1).
         """
         # TODO: implement.
-        raise NotImplementedError("SingleQubitGate.to_unitary is not implemented yet")
+        N=2**self.n
+        U=np.eye(N,dtype=complex)
+        bit=2**self.qubit
+        for i in range(N):
+            if i&bit:
+                continue
+            j=i|bit
+            U[i,i]=self.unitary[0,0]
+            U[i,j]=self.unitary[0,1]
+            U[j,i]=self.unitary[1,0]
+            U[j,j]=self.unitary[1,1]
+        return U
 
 
 @dataclass
@@ -100,7 +118,16 @@ class ControlledU:
         ones except the target bit, all ones).
         """
         # TODO: implement.
-        raise NotImplementedError("ControlledU.to_unitary is not implemented yet")
+        N = 2**self.n
+        U = np.eye(N, dtype=complex)
+        bit = 2 ** self.target
+        i = (N-1)^ bit
+        j = i|bit
+        U[i,i] = self.unitary[0,0]
+        U[i,j] = self.unitary[0,1]
+        U[j,i] = self.unitary[1,0]
+        U[j,j] = self.unitary[1,1]
+        return U
 
 
 @dataclass
@@ -119,7 +146,21 @@ class CU:
     def to_unitary(self) -> np.ndarray:
         """Identity except the control=1 blocks, where `unitary` acts on `target`."""
         # TODO: implement.
-        raise NotImplementedError("CU.to_unitary is not implemented yet")
+        N=2**self.n
+        U=np.eye(N,dtype=complex)
+        control_bit=2**self.control
+        target_bit=2**self.target
+        for i in range(N):
+            if(i & control_bit)==0:
+                continue
+            if(i & target_bit)!=0:
+                    continue
+        j=i|target_bit
+        U[i,i]=self.unitary[0,0]
+        U[i,j]=self.unitary[0,1]
+        U[j,i]=self.unitary[1,0]
+        U[j,j]=self.unitary[1,1]
+        return U
 
 
 @dataclass
@@ -137,7 +178,21 @@ class CNOT:
         amplitudes.
         """
         # TODO: implement.
-        raise NotImplementedError("CNOT.to_unitary is not implemented yet")
+        N=2**self.n
+        U=np.eye(N,dtype=complex)
+        control_bit=2**self.control
+        target_bit=2**self.target
+        for i in range(N):
+            if (i & control_bit)==0:
+                continue
+            if (i & target_bit)!=0:
+                continue
+            j=i|target_bit
+            U[i,i]=0
+            U[j,j]=0
+            U[i,j]=1
+            U[j,i]=1
+        return U
 
 
 @dataclass
@@ -163,7 +218,10 @@ def circuit_to_unitary(circuit: Circuit) -> np.ndarray:
     result = g_last @ ... @ g_1. Assumes the circuit is non-empty.
     """
     # TODO: implement.
-    raise NotImplementedError("circuit_to_unitary is not implemented yet")
+    result=circuit[0].to_unitary()
+    for gate in circuit[1:]:
+        result=gate.to_unitary()@result
+    return result
 
 
 def to_circuit(two_levels: TwoLevels) -> Circuit:
@@ -171,7 +229,7 @@ def to_circuit(two_levels: TwoLevels) -> Circuit:
     twolevel_decomposition output flows straight into a Circuit.
     """
     # TODO: implement.
-    raise NotImplementedError("to_circuit is not implemented yet")
+    return list(two_levels)
 
 
 def error_up_to_phase(a: np.ndarray, b: np.ndarray) -> float:
@@ -180,7 +238,12 @@ def error_up_to_phase(a: np.ndarray, b: np.ndarray) -> float:
     <b, a> = sum conj(b_ij) a_ij, then compare. ~0 means equal up to global phase.
     """
     # TODO: implement.
-    raise NotImplementedError("error_up_to_phase is not implemented yet")
+    overlap=np.sum(np.conj(b)*a)
+    if abs(overlap)<1e-12:
+        phase=1
+    else:
+        phase=overlap/abs(overlap)
+    return np.max(np.abs(a-phase*b))
 
 
 # ---------------------------------------------------------------------------
@@ -194,7 +257,7 @@ def align(x: complex, y: complex, norm: float) -> np.ndarray:
     level onto the first, leaving the real `norm` there and 0 below.
     """
     # TODO: implement.
-    raise NotImplementedError("align is not implemented yet")
+    return np.array([[np.conj(x),np.conj(y)],[-y,x]],dtype=complex)/norm
 
 
 def decompose_vector(vec: np.ndarray) -> TwoLevels:
@@ -212,7 +275,11 @@ def expand_twolevels(input: TwoLevels, n: int) -> TwoLevels:
     the offset (n - tl.size). Used to lift a sub-block decomposition back to full n.
     """
     # TODO: implement.
-    raise NotImplementedError("expand_twolevels is not implemented yet")
+    output=[]
+    shift=n-input[0].size
+    for tl in input:
+        output.append(TwoLevel(size=n,level0=tl.level0+shift,level1=tl.level1+shift,unitary=tl.unitary))
+    return output
 
 
 def two_levels_to_unitary(two_levels: TwoLevels) -> np.ndarray:
@@ -220,7 +287,10 @@ def two_levels_to_unitary(two_levels: TwoLevels) -> np.ndarray:
     order (result = tl.to_unitary() @ result), reproducing the application order.
     """
     # TODO: implement.
-    raise NotImplementedError("two_levels_to_unitary is not implemented yet")
+    result=np.eye(two_levels[0].size,dtype=complex)
+    for tl in two_levels:
+        result=tl.to_unitary()@result
+    return result
 
 
 def adjoint_twolevel(tl: TwoLevel) -> TwoLevel:
@@ -228,7 +298,7 @@ def adjoint_twolevel(tl: TwoLevel) -> TwoLevel:
     the 2x2 block.
     """
     # TODO: implement.
-    raise NotImplementedError("adjoint_twolevel is not implemented yet")
+    return TwoLevel(size=tl.size,level0=tl.level0,level1=tl.level1,unitary=tl.unitary.conj().T)
 
 
 def adjoint_twolevels(two_levels: TwoLevels) -> TwoLevels:
@@ -236,7 +306,10 @@ def adjoint_twolevels(two_levels: TwoLevels) -> TwoLevels:
     (A_k ... A_1)^dagger = A_1^dagger ... A_k^dagger.
     """
     # TODO: implement.
-    raise NotImplementedError("adjoint_twolevels is not implemented yet")
+    output=[]
+    for tl in reversed(two_levels):
+        output.append(adjoint_twolevel(tl))
+    return output
 
 
 def decompose_unitary(u: np.ndarray) -> TwoLevels:
@@ -256,7 +329,7 @@ def twolevel_decomposition(u: np.ndarray) -> TwoLevels:
     the sequence whose product is u.
     """
     # TODO: implement (hint: adjoint_twolevels(decompose_unitary(u))).
-    raise NotImplementedError("twolevel_decomposition is not implemented yet")
+    return adjoint_twolevels(decompose_unitary(u))
 
 
 # ---------------------------------------------------------------------------
@@ -287,13 +360,21 @@ def abc_decompose(u: np.ndarray) -> ABC:
     e^{i alpha} A X B X C = u.
     """
     # TODO: implement using rotation.euler_angles_zyz, rotation.Rz/Ry.
-    raise NotImplementedError("abc_decompose is not implemented yet")
-
+    alpha,beta,gamma,delta=rotation.euler_angles_zyz(u)
+    A=np.dot(rotation.Rz(beta),rotation.Ry(gamma/2))
+    B=np.dot(rotation.Ry(-gamma/2),rotation.Rz(-(delta+beta)/2))
+    C=rotation.Rz((delta-beta)/2)
+    return ABC(alpha,A,B,C)
 
 def abc_reconstruct(d: ABC) -> np.ndarray:
     """Reassemble e^{i alpha} A X B X C from an ABC (inverse of abc_decompose)."""
     # TODO: implement.
-    raise NotImplementedError("abc_reconstruct is not implemented yet")
+    X=np.array([[0,1],[1,0]],dtype=complex)
+    U=np.dot(d.A,X)
+    U=np.dot(U,d.B)
+    U=np.dot(U,X)
+    U=np.dot(U,d.C)
+    return np.exp(1j*d.alpha)*U
 
 
 # ---------------------------------------------------------------------------
@@ -316,8 +397,8 @@ def decompose_swap(swap: Swap) -> Circuit:
     the swap's arbitrary control values.
     """
     # TODO: implement (hint: controlled_circuit with Pauli-X).
-    raise NotImplementedError("decompose_swap is not implemented yet")
-
+    X=np.array([[0,1],[1,0]],dtype=complex)
+    return controlled_circuit(len(swap.control_vals),swap.target,swap.control_vals,X)
 
 def controlled_circuit(
     n: int, target: int, control_vals: list[bool], unitary: np.ndarray
@@ -328,7 +409,16 @@ def controlled_circuit(
     become 1-controls. The sandwich is symmetric (X is its own inverse).
     """
     # TODO: implement.
-    raise NotImplementedError("controlled_circuit is not implemented yet")
+    circuit=[]
+    X=np.array([[0,1],[1,0]],dtype=complex)
+    for i in range(n):
+        if i!=target and not control_vals[i]:
+            circuit.append(SingleQubitGate(n,i,X))
+    circuit.append(ControlledU(n,target,unitary))
+    for i in reversed(range(n)):
+        if i!=target and not control_vals[i]:
+            circuit.append(SingleQubitGate(n,i,X))
+    return circuit
 
 
 # ---------------------------------------------------------------------------
@@ -360,7 +450,22 @@ def decompose_controlled(
     Phases are kept throughout.
     """
     # TODO: implement (recursive; use rotation.unitary2_sqrt for V).
-    raise NotImplementedError("decompose_controlled is not implemented yet")
+    if len(controls)==0:
+        return [SingleQubitGate(n,target,u)]
+    if len(controls)==1:
+        if np.allclose(u,np.array([[0,1],[1,0]],dtype=complex)):
+            return [CNOT(n,controls[0],target)]
+        return [CU(n,controls[0],target,u)]
+    V=rotation.unitary2_sqrt(u)
+    pivot=controls[-1]
+    rest=controls[:-1]
+    circuit=[]
+    circuit.extend(decompose_controlled(n,[pivot],target,V))
+    circuit.extend(decompose_controlled(n,rest,pivot,np.array([[0,1],[1,0]],dtype=complex)))
+    circuit.extend(decompose_controlled(n,[pivot],target,V.conj().T))
+    circuit.extend(decompose_controlled(n,rest,pivot,np.array([[0,1],[1,0]],dtype=complex)))
+    circuit.extend(decompose_controlled(n,rest,target,V))
+    return circuit
 
 
 def decompose_controlledU(g: ControlledU) -> Circuit:
@@ -368,7 +473,11 @@ def decompose_controlledU(g: ControlledU) -> Circuit:
     the list of all non-target qubits as controls and call decompose_controlled.
     """
     # TODO: implement.
-    raise NotImplementedError("decompose_controlledU is not implemented yet")
+    controls=[]
+    for i in range(g.n):
+        if i!=g.target:
+            controls.append(i)
+    return decompose_controlled(g.n,controls,g.target,g.unitary)
 
 
 def decompose_cu(g: CU) -> Circuit:
@@ -379,7 +488,16 @@ def decompose_cu(g: CU) -> Circuit:
     control=1: CNOTs act as X, target sees A X B X C = U with phase e^{i alpha}.
     """
     # TODO: implement using abc_decompose.
-    raise NotImplementedError("decompose_cu is not implemented yet")
+    d=abc_decompose(g.unitary)
+    circuit=[]
+    circuit.append(SingleQubitGate(g.n,g.target,d.C))
+    circuit.append(CNOT(g.n,g.control,g.target))
+    circuit.append(SingleQubitGate(g.n,g.target,d.B))
+    circuit.append(CNOT(g.n,g.control,g.target))
+    circuit.append(SingleQubitGate(g.n,g.target,d.A))
+    phase=np.array([[1,0],[0,np.exp(1j*d.alpha)]],dtype=complex)
+    circuit.append(SingleQubitGate(g.n,g.control,phase))
+    return circuit
 
 
 def decompose_to_basis(u: np.ndarray) -> Circuit:
@@ -392,8 +510,28 @@ def decompose_to_basis(u: np.ndarray) -> Circuit:
     Each stage rewrites only its own gate type and passes the rest through unchanged.
     """
     # TODO: implement (run each rewrite pass over the circuit).
-    raise NotImplementedError("decompose_to_basis is not implemented yet")
-
+    circuit=to_circuit(twolevel_decomposition(u))
+    next_circuit=[]
+    for gate in circuit:
+        if isinstance(gate,TwoLevel):
+            next_circuit.extend(decompose_twolevel(gate))
+        else:
+            next_circuit.append(gate)
+    circuit=next_circuit
+    next_circuit=[]
+    for gate in circuit:
+        if isinstance(gate,ControlledU):
+            next_circuit.extend(decompose_controlledU(gate))
+        else:
+            next_circuit.append(gate)
+    circuit=next_circuit
+    next_circuit=[]
+    for gate in circuit:
+        if isinstance(gate,CU):
+            next_circuit.extend(decompose_cu(gate))
+        else:
+            next_circuit.append(gate)
+    return next_circuit
 
 def ht_gates(n: int, qubit: int, word: str) -> Circuit:
     """Expand a flat H/T word into a Circuit of SingleQubitGate H/T gates on `qubit`.
@@ -402,7 +540,15 @@ def ht_gates(n: int, qubit: int, word: str) -> Circuit:
     rotation.gates_to_unitary(word).
     """
     # TODO: implement.
-    raise NotImplementedError("ht_gates is not implemented yet")
+    circuit=[]
+    H=rotation.H
+    T=np.array([[1,0],[0,np.exp(1j*np.pi/4)]],dtype=complex)
+    for gate in reversed(word):
+        if gate=="H":
+            circuit.append(SingleQubitGate(n,qubit,H))
+        elif gate=="T":
+            circuit.append(SingleQubitGate(n,qubit,T))
+    return circuit
 
 
 def decompose_to_ht(u: np.ndarray, error: float) -> Circuit:
@@ -415,4 +561,12 @@ def decompose_to_ht(u: np.ndarray, error: float) -> Circuit:
     global phase (compare with error_up_to_phase).
     """
     # TODO: implement using decompose_to_basis, ht_gates, and rotation.approximate_in_ht.
-    raise NotImplementedError("decompose_to_ht is not implemented yet")
+    basis=decompose_to_basis(u)
+    circuit=[]
+    for gate in basis:
+        if isinstance(gate,SingleQubitGate):
+            word=rotation.approximate_in_ht(gate.unitary,error)
+            circuit.extend(ht_gates(gate.n,gate.qubit,word))
+        else:
+            circuit.append(gate)
+    return circuit
