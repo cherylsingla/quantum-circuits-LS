@@ -29,14 +29,30 @@ class Bloch:
 
 def to_bloch(g: np.ndarray) -> Bloch:
     """Recover the Bloch form (alpha, n, theta) of a 2x2 unitary `g`."""
-    raise NotImplementedError("to_bloch is not implemented yet")
+    alpha = 0.5 * np.angle(np.linalg.det(g))
+    u = np.exp(-1j* alpha)*g
+    c = np.real(np.trace(u)/2)
+    theta = 2*np.arccos(c)
+    X = np.array([[0,1],[1,0]],dtype=DTYPE)
+    Y = np.array([[0,-1j],[1j,0]],dtype=DTYPE)
+    Z = np.array([[1,0],[0,-1]],dtype=DTYPE)
+    s = np.sin(theta/2)
+    nx = np.real((-1j/2) * np.trace(X @ u)) / s
+    ny = np.real((-1j/2) * np.trace(Y @ u)) /s
+    nz = np.real((-1j/2) * np.trace(Z @ u)) /s
+    n = np.array([nx, ny, nz])
+    n /= np.linalg.norm(n)
+    return Bloch(alpha, n, theta)
 
 
 # n1, n2 are two orthogonal Bloch-sphere axes (n1 . n2 == 0)
 # TODO: fill in the two orthogonal rotation axes (each a length-3
 # unit vector [x, y, z])
-n1 = np.array([np.nan, np.nan, np.nan])
-n2 = np.array([np.nan, np.nan, np.nan])
+c = np.sqrt(2) / np.tan(np.pi / 8)
+n1 = np.array([-c / np.sqrt(2),1, c / np.sqrt(2)], dtype=float)
+n1 /= np.linalg.norm(n1)
+n2 = np.array([1 / np.sqrt(2),c,-1 / np.sqrt(2)], dtype=float)
+n2 /= np.linalg.norm(n2)
 
 # frame derived from the axes (given)
 # take the dot product of the Bloch axis with these
@@ -53,8 +69,16 @@ def n1n2n1_angles(b: Bloch) -> tuple[float, float, float, float]:
     where Ra(angle) is a rotation by `angle` about axis a, and {a1, a2, a3} is
     the orthonormal frame defined above. Returns (alpha, beta, gamma, global_phase).
     """
-    # TODO: implement using the steps above.
-    raise NotImplementedError("n1n2n1_angles is not implemented yet")
+    # TODO(student): implement using the steps above.
+    v1 = np.dot(b.n,a1)*np.sin(b.theta)
+    v2 = np.dot(b.n,a2)*np.sin(b.theta)
+    v3 = np.dot(b.n,a3)*np.sin(b.theta)
+    beta = np.arctan2(np.sqrt(v2*v2 + v3*v3),np.cos(b.theta))
+    sum = np.arctan2(v1,np.cos(b.theta))
+    diff = np.arctan2(v3,v2)
+    alpha = (sum - diff)/2
+    gamma = (sum + diff)/2
+    return alpha, beta, gamma, b.alpha
 
 
 def approx_angle_with_tolerance(angle: float, tolerance: float) -> int:
@@ -69,8 +93,17 @@ def approx_angle_with_tolerance(angle: float, tolerance: float) -> int:
       * the angular distance between two wrapped angles a, b is
         min(|a - b|, TWO_PI - |a - b|) (so 0.01 and 2*pi - 0.01 count as close).
     """
-    # TODO: implement using the hint above.
-    raise NotImplementedError("approx_angle_with_tolerance is not implemented yet")
+    # TODO(student): implement using the hint above.
+    target = angle % TWO_PI
+    k = 1
+    while True:
+        current = (k * LAMBDA_PI) % TWO_PI
+        diff = abs(current - target)
+        diff = min(diff, TWO_PI - diff)
+        if diff <= tolerance:
+            return k
+        k += 1
+
 
 
 def decompose_2x2(u: np.ndarray, tolerance: float) -> tuple[int, int, int]:
@@ -99,17 +132,13 @@ def decompose_2x2(u: np.ndarray, tolerance: float) -> tuple[int, int, int]:
 
       3. Return (k, l, m).
     """
-    # TODO: implement using the steps above.
-    raise NotImplementedError("decompose_2x2 is not implemented yet")
-
-
-# ---------------------------------------------------------------------------
-# Single-qubit rotation helpers (see cpp/src/Unitary2_Bloch.h).
-#
-# These are the inverse/companion operations to to_bloch and are reused by the
-# multi-qubit decomposition pipeline in decompose.py.
-# ---------------------------------------------------------------------------
-
+    # TODO(student): implement using the steps above.
+    b = to_bloch(u)
+    alpha, beta, gamma, _ = n1n2n1_angles(b)
+    k = approx_angle_with_tolerance(alpha,tolerance)
+    l = approx_angle_with_tolerance(beta,tolerance)
+    m = approx_angle_with_tolerance(gamma,tolerance)
+    return k, l, m
 
 def from_axis_angle(b: Bloch) -> np.ndarray:
     """Build a 2x2 unitary from its Bloch form: a global phase times a rotation
@@ -120,8 +149,14 @@ def from_axis_angle(b: Bloch) -> np.ndarray:
     where (b.n . sigma) = n_x X + n_y Y + n_z Z. Assumes b.n is a unit vector.
     """
     # TODO: implement using the formula above.
-    raise NotImplementedError("from_axis_angle is not implemented yet")
-
+    I = np.eye(2,dtype=DTYPE)
+    X = np.array([[0,1],[1,0]],dtype=DTYPE)
+    Y = np.array([[0,-1j],[1j,0]],dtype=DTYPE)
+    Z = np.array([[1,0],[0,-1]],dtype=DTYPE)
+    sigma = b.n[0]*X + b.n[1]*Y + b.n[2]*Z
+    c = np.cos(b.theta/2)
+    s = np.sin(b.theta/2)
+    return np.exp(1j*b.alpha)*(c*I - 1j*s *sigma)
 
 def Rz(theta: float) -> np.ndarray:
     """Rotation about the z axis (no global phase):
@@ -129,8 +164,7 @@ def Rz(theta: float) -> np.ndarray:
     Rz(theta) = diag(e^{-i theta/2}, e^{i theta/2}).
     """
     # TODO: implement (hint: from_axis_angle about axis [0, 0, 1]).
-    raise NotImplementedError("Rz is not implemented yet")
-
+    return from_axis_angle(Bloch(alpha=0.0,n=np.array([0.0, 0.0, 1.0]),theta=theta))
 
 def Ry(theta: float) -> np.ndarray:
     """Rotation about the y axis (no global phase):
@@ -138,8 +172,7 @@ def Ry(theta: float) -> np.ndarray:
     Ry(theta) = [[cos(theta/2), -sin(theta/2)], [sin(theta/2), cos(theta/2)]].
     """
     # TODO: implement (hint: from_axis_angle about axis [0, 1, 0]).
-    raise NotImplementedError("Ry is not implemented yet")
-
+    return from_axis_angle(Bloch(alpha=0.0,n=np.array([0.0,1.0,0.0]),theta=theta))
 
 def euler_angles_zyz(u: np.ndarray) -> tuple[float, float, float, float]:
     """ZYZ Euler decomposition of a 2x2 unitary: angles (alpha, beta, gamma, delta)
@@ -153,8 +186,18 @@ def euler_angles_zyz(u: np.ndarray) -> tuple[float, float, float, float]:
     split arbitrarily (gimbal lock); the identity still holds.
     """
     # TODO: implement using the relations above.
-    raise NotImplementedError("euler_angles_zyz is not implemented yet")
-
+    alpha = 0.5*np.angle(np.linalg.det(u))
+    S = np.exp(-1j*alpha)*u
+    gamma = 2 *np.arctan2(abs(S[1,0]), abs(S[0,0]))
+    if abs(S[1,0]) <pow(10,-12):
+        beta = -2*np.angle(S[0,0])
+        delta = 0.0
+    else:
+        sum = -2*np.angle(S[0,0]) 
+        diff = 2*np.angle(S[1,0])     
+        beta = (sum+diff) /2
+        delta = (sum-diff)/ 2
+    return alpha,beta,gamma,delta
 
 def unitary2_sqrt(u: np.ndarray) -> np.ndarray:
     """Principal square root: a 2x2 unitary V with V @ V == u, phase included.
@@ -162,7 +205,8 @@ def unitary2_sqrt(u: np.ndarray) -> np.ndarray:
     back doubles them, reproducing u exactly.
     """
     # TODO: implement (hint: to_bloch, halve alpha and theta, from_axis_angle).
-    raise NotImplementedError("unitary2_sqrt is not implemented yet")
+    b = to_bloch(u)
+    return from_axis_angle(Bloch(alpha=b.alpha/2,n=b.n,theta=b.theta/2) )
 
 
 # ---------------------------------------------------------------------------
@@ -183,18 +227,28 @@ def expand_word(word: list[int]) -> str:
     string of 'H'/'T' gates (left-to-right). Even indices are T, odd indices are H.
     """
     # TODO: implement.
-    raise NotImplementedError("expand_word is not implemented yet")
-
+    ans = ""
+    for i, p in enumerate(word):
+        gate = "T" if i%2 == 0 else "H"
+        ans+=gate*p
+    return ans
 
 # flat H/T strings for the two building-block words (computed once expand_word works)
-# M1_STR = expand_word(M1_WORD)
-# M2_STR = expand_word(M2_WORD)
+M1_STR = expand_word(M1_WORD)
+M2_STR = expand_word(M2_WORD)
 
 
 def gates_to_unitary(gates: str) -> np.ndarray:
     """The 2x2 unitary of a flat H/T gate string (left-to-right product)."""
     # TODO: implement (multiply H / T for each char, starting from I).
-    raise NotImplementedError("gates_to_unitary is not implemented yet")
+    T=np.array([[1,0],[0,np.exp(1j*np.pi/4)]],dtype=DTYPE)
+    U=np.eye(2,dtype=DTYPE)
+    for g in gates:
+        if g=="H":
+            U=np.dot(U,H)
+        elif g=="T":
+            U=np.dot(U,T)
+    return U
 
 
 def invert_gates(gates: str) -> str:
@@ -202,7 +256,14 @@ def invert_gates(gates: str) -> str:
     H^-1 = H; the {H, T} basis has no T-dagger, so T^-1 must be spelled as T^7.
     """
     # TODO: implement.
-    raise NotImplementedError("invert_gates is not implemented yet")
+    ans=""
+    for g in reversed(gates):
+        if g=="H":
+            ans+="H"
+        elif g=="T":
+            ans+="TTTTTTT"
+    return ans
+
 
 
 def power_gates(base: str, k: int) -> str:
@@ -210,7 +271,11 @@ def power_gates(base: str, k: int) -> str:
     inverse word (invert_gates).
     """
     # TODO: implement.
-    raise NotImplementedError("power_gates is not implemented yet")
+    if k==0:
+        return ""
+    if k>0:
+        return base*k
+    return invert_gates(base)*(-k)
 
 
 def approximate_in_ht(u: np.ndarray, error: float) -> str:
@@ -223,4 +288,5 @@ def approximate_in_ht(u: np.ndarray, error: float) -> str:
         power_gates(M1_STR, k) + power_gates(M2_STR, l) + power_gates(M1_STR, m).
     """
     # TODO: implement using decompose_2x2 and power_gates.
-    raise NotImplementedError("approximate_in_ht is not implemented yet")
+    k,l,m=decompose_2x2(u,error)
+    return power_gates(M1_STR,k)+power_gates(M2_STR,l)+power_gates(M1_STR,m)
